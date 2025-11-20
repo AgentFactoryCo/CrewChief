@@ -231,45 +231,32 @@ For AI-powered features, you need Azure AI Foundry Local running:
 
 2. **Download and start a model:**
    ```bash
-   foundry model download phi-3.5-mini
+   foundry model download Phi-3.5-mini-instruct
    foundry service start
    ```
 
-3. **Find your API endpoint:**
+3. **Initialize CrewChief (auto-detects Foundry Local):**
    ```bash
-   foundry service status
+   crewchief init-garage
    ```
 
-   **Note:** Foundry Local uses dynamic port assignment. Copy the endpoint URL shown (e.g., `http://localhost:52734/v1`).
-
-4. **Configure CrewChief:**
-
-   Create a `.env` file in your project directory with your actual port:
-   ```bash
-   CREWCHIEF_LLM_BASE_URL=http://localhost:YOUR_PORT/v1
-   CREWCHIEF_LLM_MODEL=phi-3.5-mini
-   ```
-
-5. **Verify it's accessible:**
-   ```bash
-   curl http://localhost:YOUR_PORT/v1/models
-   ```
+   This will automatically detect your Foundry Local endpoint and model, creating a `.env` file with the correct configuration.
 
 See [PREREQUISITES.md](PREREQUISITES.md) for detailed setup instructions.
 
 ## Configuration
 
-CrewChief can be configured via environment variables or a `.env` file:
+CrewChief can be configured via environment variables or a `.env` file (auto-created by `init-garage`):
 
 ```bash
 CREWCHIEF_DB_PATH=~/.crewchief/crewchief.db
-CREWCHIEF_LLM_BASE_URL=http://localhost:52734/v1  # Use your actual port from 'foundry service status'
-CREWCHIEF_LLM_MODEL=phi-3.5-mini
+CREWCHIEF_LLM_BASE_URL=http://localhost:1234/v1
+CREWCHIEF_LLM_MODEL=Phi-3.5-mini-instruct-generic-gpu:1
 CREWCHIEF_LLM_ENABLED=true
 CREWCHIEF_LLM_TIMEOUT=30
 ```
 
-**Note:** The `LLM_BASE_URL` port is dynamically assigned by Foundry Local. Run `foundry service status` to find your actual port.
+**Note:** The model name should use the fID format (e.g., `Phi-3.5-mini-instruct-generic-gpu:1`). The `init-garage` command automatically detects this from your Foundry Local instance.
 
 ## Commands
 
@@ -286,8 +273,6 @@ CREWCHIEF_LLM_TIMEOUT=30
 - `track-prep <id>` - Generate track day checklist (requires Foundry Local)
 
 ## Development
-
-See [CLAUDE.md](CLAUDE.md) for detailed development documentation.
 
 ```bash
 # Install development dependencies
@@ -312,8 +297,6 @@ CrewChief is built with:
 - **SQLite** for local data storage
 - **httpx** for LLM API calls
 - **Azure AI Foundry Local** for AI features
-
-See [PRD.md](PRD.md) for complete technical specifications.
 
 ## Project Status
 
