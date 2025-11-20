@@ -115,15 +115,28 @@ def init_garage() -> None:
                     # Use localhost for consistency
                     llm_url = f"http://localhost:{port}/v1"
 
+                    # Try to get the actual model name
+                    model_name = "phi-3.5-mini"  # Default fallback
+                    try:
+                        import requests
+                        models_response = requests.get(f"{llm_url}/models", timeout=5)
+                        if models_response.status_code == 200:
+                            models_data = models_response.json()
+                            if models_data.get("data") and len(models_data["data"]) > 0:
+                                model_name = models_data["data"][0]["id"]
+                    except Exception:
+                        pass  # Use default if detection fails
+
                     # Create .env file
                     env_content = f"""# CrewChief Configuration
 CREWCHIEF_LLM_BASE_URL={llm_url}
-CREWCHIEF_LLM_MODEL=phi-3.5-mini
+CREWCHIEF_LLM_MODEL={model_name}
 CREWCHIEF_LLM_ENABLED=true
 CREWCHIEF_LLM_TIMEOUT=30
 """
                     env_path.write_text(env_content)
                     console.print(f"[green]✓[/green] Created .env file with Foundry Local endpoint: {llm_url}")
+                    console.print(f"[dim]Model: {model_name}[/dim]")
                 else:
                     console.print("[yellow]⚠[/yellow] Foundry Local detected but couldn't find endpoint URL")
                     console.print("[dim]You may need to create .env manually - see PREREQUISITES.md[/dim]")
