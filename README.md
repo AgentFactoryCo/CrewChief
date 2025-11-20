@@ -16,7 +16,9 @@ CrewChief is a Python CLI application that helps you manage your garage and trac
 ## Requirements
 
 - Python 3.11 or higher
-- [Foundry Local](https://foundry.black) (for AI features)
+- [Foundry Local](https://foundry.black) (optional, for AI features)
+
+**New to Python or Foundry?** See [PREREQUISITES.md](PREREQUISITES.md) for detailed installation instructions and verification steps.
 
 ## Installation
 
