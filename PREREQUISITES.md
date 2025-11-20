@@ -71,9 +71,17 @@ python3 -m ensurepip --upgrade
 python -m ensurepip --upgrade
 ```
 
-## Foundry Local (Optional)
+## Azure AI Foundry Local (Optional)
 
-Foundry Local is only required for AI-powered features (summary, suggest-maint, track-prep). All core garage management features work without it.
+Azure AI Foundry Local is only required for AI-powered features (summary, suggest-maint, track-prep). All core garage management features work without it.
+
+**Foundry Local** is Microsoft's local AI runtime that runs models on your machine with full privacy - no cloud required.
+
+### System Requirements
+
+- **OS**: Windows 10/11 (x64/ARM), Windows Server 2025, or macOS
+- **RAM**: Minimum 8 GB (16 GB recommended)
+- **Disk**: Minimum 3 GB free (15 GB recommended)
 
 ### Check if Foundry Local is installed
 
@@ -85,39 +93,80 @@ If installed, you'll see version information. If not, you'll get a "command not 
 
 ### Install Foundry Local
 
-Foundry Local is an LLM runtime that runs entirely on your machine.
+**Windows:**
+```bash
+winget install Microsoft.FoundryLocal
+```
 
-**Visit:** [foundry.black](https://foundry.black)
+**macOS:**
+```bash
+brew install microsoft/foundrylocal/foundrylocal
+```
 
-Follow the installation instructions for your operating system:
+**Official Documentation:**
+[Microsoft Learn - Get started with Foundry Local](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started)
 
-1. Install Foundry using their recommended method
-2. Download a compatible model (e.g., `phi-3.5-mini`)
-3. Start the server:
+### Download and Run a Model
+
+1. List available models:
    ```bash
-   foundry serve phi-3.5-mini
+   foundry model list
+   ```
+
+2. Download a model (recommended: phi-3.5-mini or similar 3-7B parameter model):
+   ```bash
+   foundry model download phi-3.5-mini
+   ```
+
+3. Start the Foundry Local service:
+   ```bash
+   foundry service start
+   ```
+
+4. Check the service status and find the API port:
+   ```bash
+   foundry service status
+   ```
+
+   **Important**: Foundry Local uses a dynamic port assignment. The output will show you the actual port (e.g., `http://localhost:52734/v1`).
+
+### Configure CrewChief for Your Port
+
+Since Foundry Local assigns ports dynamically, you need to configure CrewChief with your actual port:
+
+1. Find your Foundry Local endpoint:
+   ```bash
+   foundry service status
+   ```
+
+2. Set the environment variable:
+   ```bash
+   export CREWCHIEF_LLM_BASE_URL=http://localhost:YOUR_PORT/v1
+   ```
+
+   Or create a `.env` file in your project directory:
+   ```bash
+   CREWCHIEF_LLM_BASE_URL=http://localhost:52734/v1
+   CREWCHIEF_LLM_MODEL=phi-3.5-mini
    ```
 
 ### Verify Foundry is running
 
+Replace `PORT` with your actual port from `foundry service status`:
+
 ```bash
-curl http://localhost:1234/v1/models
+curl http://localhost:PORT/v1/models
 ```
 
-You should see JSON output listing available models. If you get a connection error, make sure Foundry is running with `foundry serve`.
+You should see JSON output listing available models.
 
 ### Recommended Models
 
-For CrewChief, we recommend:
+For CrewChief, we recommend smaller, efficient models:
 
-- **phi-3.5-mini** - Fast, efficient, good for most garage management tasks
-- **llama-3.1-8b** - More powerful, better reasoning, higher resource usage
-- **phi-3-medium** - Balanced performance and quality
-
-Start Foundry with your chosen model:
-```bash
-foundry serve phi-3.5-mini
-```
+- **phi-3.5-mini** (3.8B) - Fast, efficient, good for most garage tasks
+- **phi-3-medium** (14B) - Better reasoning, requires more resources
+- **GPT-OSS-20b** - Optimized for local/edge, requires 16GB+ RAM
 
 ### Running without Foundry Local
 
@@ -168,7 +217,7 @@ Before installing CrewChief, ensure you have:
 - [ ] pip working (`python3 -m pip --version`)
 - [ ] venv support (`python3 -m venv --help`)
 - [ ] Git installed (`git --version`)
-- [ ] (Optional) Foundry Local running (`curl http://localhost:1234/v1/models`)
+- [ ] (Optional) Azure AI Foundry Local running (`foundry service status`)
 
 Once these are ready, proceed to [Installation](README.md#installation) in the README.
 
@@ -200,10 +249,27 @@ Better yet, always use a virtual environment (recommended method in README).
 
 ### Foundry Local not responding
 
-1. Check if Foundry is running: `ps aux | grep foundry`
-2. Check the port: `lsof -i :1234` (macOS/Linux) or `netstat -ano | findstr :1234` (Windows)
-3. Try restarting Foundry: `foundry serve phi-3.5-mini`
-4. Check Foundry's logs for errors
+1. Check if Foundry service is running:
+   ```bash
+   foundry service status
+   ```
+
+2. If not running, start it:
+   ```bash
+   foundry service start
+   ```
+
+3. Verify you have the correct port configured in your `.env` file
+
+4. Check Foundry logs for errors:
+   ```bash
+   foundry service logs
+   ```
+
+5. Restart the service if needed:
+   ```bash
+   foundry service restart
+   ```
 
 ### Windows-specific issues
 

@@ -16,9 +16,9 @@ CrewChief is a Python CLI application that helps you manage your garage and trac
 ## Requirements
 
 - Python 3.11 or higher
-- [Foundry Local](https://foundry.black) (optional, for AI features)
+- [Azure AI Foundry Local](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started) (optional, for AI features)
 
-**New to Python or Foundry?** See [PREREQUISITES.md](PREREQUISITES.md) for detailed installation instructions and verification steps.
+**New to Python or Foundry Local?** See [PREREQUISITES.md](PREREQUISITES.md) for detailed installation instructions and verification steps.
 
 ## Installation
 
@@ -62,7 +62,7 @@ crewchief log-service 1 --date 2024-01-15 --type oil_change --odometer 50000
 # View maintenance history
 crewchief history 1
 
-# Get AI-powered garage summary (requires Foundry Local)
+# Get AI-powered garage summary (requires Azure AI Foundry Local)
 crewchief summary
 
 # Get maintenance suggestions
@@ -206,19 +206,49 @@ procedure was completed. Consider brake fluid flush if tracking regularly
 (high-temp fluid degrades faster).
 ```
 
-## Foundry Local Setup
+## Azure AI Foundry Local Setup
 
-For AI-powered features, you need Foundry Local running:
+For AI-powered features, you need Azure AI Foundry Local running:
 
-1. Install Foundry (see [foundry.black](https://foundry.black) for instructions)
-2. Start Foundry with a compatible model:
+1. **Install Foundry Local:**
+
+   Windows:
    ```bash
-   foundry serve phi-3.5-mini
+   winget install Microsoft.FoundryLocal
    ```
-3. Verify it's accessible:
+
+   macOS:
    ```bash
-   curl http://localhost:1234/v1/models
+   brew install microsoft/foundrylocal/foundrylocal
    ```
+
+2. **Download and start a model:**
+   ```bash
+   foundry model download phi-3.5-mini
+   foundry service start
+   ```
+
+3. **Find your API endpoint:**
+   ```bash
+   foundry service status
+   ```
+
+   **Note:** Foundry Local uses dynamic port assignment. Copy the endpoint URL shown (e.g., `http://localhost:52734/v1`).
+
+4. **Configure CrewChief:**
+
+   Create a `.env` file in your project directory with your actual port:
+   ```bash
+   CREWCHIEF_LLM_BASE_URL=http://localhost:YOUR_PORT/v1
+   CREWCHIEF_LLM_MODEL=phi-3.5-mini
+   ```
+
+5. **Verify it's accessible:**
+   ```bash
+   curl http://localhost:YOUR_PORT/v1/models
+   ```
+
+See [PREREQUISITES.md](PREREQUISITES.md) for detailed setup instructions.
 
 ## Configuration
 
@@ -226,11 +256,13 @@ CrewChief can be configured via environment variables or a `.env` file:
 
 ```bash
 CREWCHIEF_DB_PATH=~/.crewchief/crewchief.db
-CREWCHIEF_LLM_BASE_URL=http://localhost:1234/v1
+CREWCHIEF_LLM_BASE_URL=http://localhost:52734/v1  # Use your actual port from 'foundry service status'
 CREWCHIEF_LLM_MODEL=phi-3.5-mini
 CREWCHIEF_LLM_ENABLED=true
 CREWCHIEF_LLM_TIMEOUT=30
 ```
+
+**Note:** The `LLM_BASE_URL` port is dynamically assigned by Foundry Local. Run `foundry service status` to find your actual port.
 
 ## Commands
 
@@ -270,7 +302,7 @@ CrewChief is built with:
 - **Pydantic v2** for data validation
 - **SQLite** for local data storage
 - **httpx** for LLM API calls
-- **Foundry Local** for AI features
+- **Azure AI Foundry Local** for AI features
 
 See [PRD.md](PRD.md) for complete technical specifications.
 
@@ -281,7 +313,7 @@ See [PRD.md](PRD.md) for complete technical specifications.
 **Completed:**
 - ✅ Phase 1: Package structure, configuration, basic CLI
 - ✅ Phase 2: Pydantic models, SQLite database, CRUD operations
-- ✅ Phase 3: LLM integration with Foundry Local
+- ✅ Phase 3: LLM integration with Azure AI Foundry Local
 - ✅ Phase 4: AI-powered CLI commands (summary, suggestions, track prep)
 - ✅ Phase 5: Comprehensive test suite (models, database, LLM, CLI)
 
