@@ -113,7 +113,7 @@ def init_garage() -> None:
                 if match:
                     port = match.group(1)
                     # Use localhost for consistency
-                    llm_url = f"http://localhost:{port}/openai/v1"
+                    llm_url = f"http://localhost:{port}/v1"
 
                     # Create .env file
                     env_content = f"""# CrewChief Configuration
