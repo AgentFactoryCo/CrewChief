@@ -120,9 +120,26 @@ def add_car(
     if model is None:
         model = typer.prompt("Model")
 
+    # Optional fields in interactive mode
+    if trim is None:
+        trim_input = typer.prompt("Trim (optional, press Enter to skip)", default="", show_default=False)
+        trim = trim_input if trim_input else None
+
+    if vin is None:
+        vin_input = typer.prompt("VIN (optional, press Enter to skip)", default="", show_default=False)
+        vin = vin_input if vin_input else None
+
     if usage is None:
         console.print("\nUsage types: daily, track, project, show, other")
         usage = typer.prompt("Usage type", default="daily")
+
+    if odometer is None:
+        odometer_input = typer.prompt("Current odometer (optional, press Enter to skip)", default="", show_default=False)
+        odometer = int(odometer_input) if odometer_input else None
+
+    if notes is None:
+        notes_input = typer.prompt("Notes (optional, press Enter to skip)", default="", show_default=False)
+        notes = notes_input if notes_input else None
 
     # Validate and convert usage type
     try:
@@ -234,6 +251,74 @@ def show_car(car_id: int) -> None:
                 console.print(f"    {event.description}")
     else:
         console.print("\n[dim]No maintenance history recorded[/dim]")
+
+
+@app.command()
+def update_car(
+    car_id: int,
+    nickname: Annotated[str | None, typer.Option(help="Nickname")] = None,
+    trim: Annotated[str | None, typer.Option(help="Trim level")] = None,
+    vin: Annotated[str | None, typer.Option(help="VIN")] = None,
+    usage: Annotated[str | None, typer.Option(help="Usage type (daily/track/project/show/other)")] = None,
+    odometer: Annotated[int | None, typer.Option(help="Current odometer reading")] = None,
+    notes: Annotated[str | None, typer.Option(help="Additional notes")] = None,
+) -> None:
+    """Update an existing car's information."""
+    repo = get_repository()
+    car = repo.get_car(car_id)
+
+    if car is None:
+        console.print(f"[red]Error:[/red] Car with ID {car_id} not found")
+        repo.close()
+        raise typer.Exit(code=1)
+
+    # Update only fields that were provided
+    updated = False
+
+    if nickname is not None:
+        car.nickname = nickname
+        updated = True
+
+    if trim is not None:
+        car.trim = trim
+        updated = True
+
+    if vin is not None:
+        car.vin = vin
+        updated = True
+
+    if usage is not None:
+        try:
+            car.usage_type = UsageType(usage.lower())
+            updated = True
+        except ValueError:
+            console.print(f"[red]Error:[/red] Invalid usage type '{usage}'. Must be one of: daily, track, project, show, other")
+            repo.close()
+            raise typer.Exit(code=1)
+
+    if odometer is not None:
+        car.current_odometer = odometer
+        updated = True
+
+    if notes is not None:
+        car.notes = notes
+        updated = True
+
+    if not updated:
+        console.print("[yellow]No fields specified to update[/yellow]")
+        console.print("Use --help to see available options")
+        repo.close()
+        raise typer.Exit(code=0)
+
+    # Update timestamp
+    car.updated_at = datetime.now()
+
+    # Save to database
+    car = repo.update_car(car)
+    repo.close()
+
+    console.print(f"\n[green]✓[/green] Car updated successfully!")
+    console.print(f"[bold]{car.display_name()}[/bold]")
 
 
 @app.command()
