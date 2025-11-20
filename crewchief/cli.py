@@ -90,7 +90,53 @@ def init_garage() -> None:
     repo.init_db()
     repo.close()
 
-    console.print("[green]✓[/green] Garage initialized successfully!")
+    # Auto-detect Foundry Local and create .env file
+    env_path = Path.cwd() / ".env"
+
+    if not env_path.exists():
+        console.print("\n[cyan]Checking for Azure AI Foundry Local...[/cyan]")
+
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["foundry", "service", "status"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0:
+                # Try to extract the endpoint URL from the output
+                import re
+                match = re.search(r'http://localhost:(\d+)', result.stdout)
+
+                if match:
+                    port = match.group(1)
+                    llm_url = f"http://localhost:{port}/v1"
+
+                    # Create .env file
+                    env_content = f"""# CrewChief Configuration
+CREWCHIEF_LLM_BASE_URL={llm_url}
+CREWCHIEF_LLM_MODEL=phi-3.5-mini
+CREWCHIEF_LLM_ENABLED=true
+CREWCHIEF_LLM_TIMEOUT=30
+"""
+                    env_path.write_text(env_content)
+                    console.print(f"[green]✓[/green] Created .env file with Foundry Local endpoint: {llm_url}")
+                else:
+                    console.print("[yellow]⚠[/yellow] Foundry Local detected but couldn't find endpoint URL")
+                    console.print("[dim]You may need to create .env manually - see PREREQUISITES.md[/dim]")
+            else:
+                console.print("[yellow]⚠[/yellow] Foundry Local not running")
+                console.print("[dim]AI features require Foundry Local - see PREREQUISITES.md[/dim]")
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            console.print("[yellow]⚠[/yellow] Foundry Local not installed")
+            console.print("[dim]AI features require Foundry Local - see PREREQUISITES.md[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Could not auto-detect Foundry Local: {e}")
+            console.print("[dim]You can create .env manually if needed - see PREREQUISITES.md[/dim]")
+
+    console.print("\n[green]✓[/green] Garage initialized successfully!")
     console.print(f"[dim]Database:[/dim] {db_path}")
     console.print(f"[dim]Config dir:[/dim] {db_path.parent}")
 
