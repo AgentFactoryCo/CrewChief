@@ -15,10 +15,11 @@ CrewChief is a Python CLI application that helps you manage your garage and trac
 
 ## Requirements
 
-- Python 3.11 or higher
-- [Azure AI Foundry Local](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started) (optional, for AI features)
+- **Windows 10/11 or Windows Server 2025**
+- **Python 3.11 or higher**
+- **Azure AI Foundry Local** (optional, for AI features)
 
-**New to Python or Foundry Local?** See [PREREQUISITES.md](PREREQUISITES.md) for detailed installation instructions and verification steps.
+**Need help installing?** See [PREREQUISITES.md](PREREQUISITES.md) for step-by-step instructions.
 
 ## Installation
 
@@ -28,8 +29,8 @@ git clone <repository-url>
 cd crewchief
 
 # Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 
 # Install CrewChief
 pip install -e .

@@ -32,9 +32,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Setup
 
 ```bash
-# Create virtual environment
+# Create virtual environment (Linux/macOS)
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate
+
+# Create virtual environment (Windows)
+python -m venv .venv
+.venv\Scripts\activate
 
 # Install dependencies (once pyproject.toml is created)
 pip install -e ".[dev]"
