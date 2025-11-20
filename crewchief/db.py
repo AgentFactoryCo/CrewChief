@@ -167,6 +167,29 @@ class GarageRepository:
         conn.commit()
         return car
 
+    def delete_car(self, car_id: int) -> bool:
+        """Delete a car and all its maintenance events.
+
+        Returns:
+            True if car was deleted, False if car not found.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Check if car exists
+        cursor.execute("SELECT id FROM cars WHERE id = ?", (car_id,))
+        if cursor.fetchone() is None:
+            return False
+
+        # Delete maintenance events first (foreign key constraint)
+        cursor.execute("DELETE FROM maintenance_events WHERE car_id = ?", (car_id,))
+
+        # Delete the car
+        cursor.execute("DELETE FROM cars WHERE id = ?", (car_id,))
+
+        conn.commit()
+        return True
+
     def add_maintenance_event(self, event: MaintenanceEvent) -> MaintenanceEvent:
         """Add a maintenance event and return it with ID."""
         conn = self._get_connection()

@@ -368,6 +368,46 @@ def update_car(
 
 
 @app.command()
+def remove_car(
+    car_id: int,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
+) -> None:
+    """Remove a car and all its maintenance history."""
+    repo = get_repository()
+    car = repo.get_car(car_id)
+
+    if car is None:
+        console.print(f"[red]Error:[/red] Car with ID {car_id} not found")
+        repo.close()
+        raise typer.Exit(code=1)
+
+    # Show what will be deleted
+    console.print(f"\n[yellow]⚠ Warning:[/yellow] This will permanently delete:")
+    console.print(f"  • [bold]{car.display_name()}[/bold] (ID: {car.id})")
+
+    # Check if there are maintenance events
+    events = repo.get_maintenance_for_car(car_id)
+    if events:
+        console.print(f"  • {len(events)} maintenance event(s)")
+
+    # Confirm deletion
+    if not force:
+        if not typer.confirm("\nAre you sure you want to delete this car?", default=False):
+            console.print("Cancelled")
+            repo.close()
+            raise typer.Exit(code=0)
+
+    # Delete the car
+    if repo.delete_car(car_id):
+        repo.close()
+        console.print(f"\n[green]✓[/green] Car deleted successfully")
+    else:
+        repo.close()
+        console.print(f"[red]Error:[/red] Failed to delete car")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def log_service(
     car_id: int,
     service_type: Annotated[str | None, typer.Option(help="Service type (oil_change/brakes/tires/fluids/inspection/mod/other)")] = None,

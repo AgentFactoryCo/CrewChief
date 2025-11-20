@@ -334,6 +334,139 @@ class TestUpdateCar:
             assert "no fields" in result.stdout.lower()
 
 
+class TestRemoveCar:
+    """Test remove-car command."""
+
+    def test_remove_car_with_confirmation(self, temp_db):
+        """Test removing a car with confirmation."""
+        db_path, repo = temp_db
+
+        # Add test car
+        car = Car(
+            year=2017,
+            make="Toyota",
+            model="86",
+            usage_type=UsageType.TRACK,
+        )
+        car = repo.add_car(car)
+
+        with patch("crewchief.cli.get_settings") as mock_settings:
+            settings_mock = create_settings_mock(db_path)
+            mock_settings.return_value = settings_mock
+
+            # Simulate user confirming deletion
+            result = runner.invoke(app, ["remove-car", str(car.id)], input="y\n")
+
+            assert result.exit_code == 0
+            assert "deleted successfully" in result.stdout.lower()
+
+            # Verify car was deleted
+            deleted_car = repo.get_car(car.id)
+            assert deleted_car is None
+
+    def test_remove_car_with_force(self, temp_db):
+        """Test removing a car with --force flag."""
+        db_path, repo = temp_db
+
+        # Add test car
+        car = Car(
+            year=2017,
+            make="Toyota",
+            model="86",
+            usage_type=UsageType.TRACK,
+        )
+        car = repo.add_car(car)
+
+        with patch("crewchief.cli.get_settings") as mock_settings:
+            settings_mock = create_settings_mock(db_path)
+            mock_settings.return_value = settings_mock
+
+            result = runner.invoke(app, ["remove-car", str(car.id), "--force"])
+
+            assert result.exit_code == 0
+            assert "deleted successfully" in result.stdout.lower()
+
+            # Verify car was deleted
+            deleted_car = repo.get_car(car.id)
+            assert deleted_car is None
+
+    def test_remove_car_cancel(self, temp_db):
+        """Test cancelling car removal."""
+        db_path, repo = temp_db
+
+        # Add test car
+        car = Car(
+            year=2017,
+            make="Toyota",
+            model="86",
+            usage_type=UsageType.TRACK,
+        )
+        car = repo.add_car(car)
+
+        with patch("crewchief.cli.get_settings") as mock_settings:
+            settings_mock = create_settings_mock(db_path)
+            mock_settings.return_value = settings_mock
+
+            # Simulate user cancelling deletion
+            result = runner.invoke(app, ["remove-car", str(car.id)], input="n\n")
+
+            assert result.exit_code == 0
+            assert "cancelled" in result.stdout.lower()
+
+            # Verify car still exists
+            existing_car = repo.get_car(car.id)
+            assert existing_car is not None
+
+    def test_remove_car_with_maintenance(self, temp_db):
+        """Test removing a car that has maintenance history."""
+        db_path, repo = temp_db
+
+        # Add test car
+        car = Car(
+            year=2017,
+            make="Toyota",
+            model="86",
+            usage_type=UsageType.TRACK,
+        )
+        car = repo.add_car(car)
+
+        # Add maintenance event
+        event = MaintenanceEvent(
+            car_id=car.id,
+            service_date=date.today(),
+            service_type=ServiceType.OIL_CHANGE,
+        )
+        repo.add_maintenance_event(event)
+
+        with patch("crewchief.cli.get_settings") as mock_settings:
+            settings_mock = create_settings_mock(db_path)
+            mock_settings.return_value = settings_mock
+
+            result = runner.invoke(app, ["remove-car", str(car.id), "--force"])
+
+            assert result.exit_code == 0
+            assert "deleted successfully" in result.stdout.lower()
+
+            # Verify car and maintenance were deleted
+            deleted_car = repo.get_car(car.id)
+            assert deleted_car is None
+            events = repo.get_maintenance_for_car(car.id)
+            assert len(events) == 0
+
+    def test_remove_car_not_found(self, temp_db):
+        """Test removing a non-existent car."""
+        db_path, repo = temp_db
+
+        with patch("crewchief.cli.get_settings") as mock_settings:
+            settings_mock = create_settings_mock(db_path)
+            mock_settings.return_value = settings_mock
+
+            result = runner.invoke(app, ["remove-car", "999", "--force"])
+
+            assert result.exit_code != 0
+            assert "not found" in result.stdout.lower() or "Error" in result.stdout
+
+
 class TestLogService:
     """Test log-service command."""
 
