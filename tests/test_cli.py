@@ -96,11 +96,11 @@ class TestAddCar:
             settings_mock = create_settings_mock(db_path)
             mock_settings.return_value = settings_mock
 
-            # Simulate user input (Year, Make, Model, Usage type only - skip optional fields)
+            # Simulate user input: Year, Make, Model, Trim (empty), VIN (empty), Usage type, Odometer (empty), Notes (empty)
             result = runner.invoke(
                 app,
                 ["add-car"],
-                input="2020\nHonda\nCivic\ndaily\n\n\n\n",
+                input="2020\nHonda\nCivic\n\n\ndaily\n\n\n",
             )
 
             assert result.exit_code == 0
@@ -119,6 +119,7 @@ class TestAddCar:
             settings_mock = create_settings_mock(db_path)
             mock_settings.return_value = settings_mock
 
+            # Flags provide year, make, model, usage; still need input for optional prompts: Trim, VIN, Odometer, Notes
             result = runner.invoke(
                 app,
                 [
@@ -132,6 +133,7 @@ class TestAddCar:
                     "--usage",
                     "daily",
                 ],
+                input="\n\n\n\n",  # Trim (skip), VIN (skip), Odometer (skip), Notes (skip)
             )
 
             assert result.exit_code == 0

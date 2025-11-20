@@ -7,6 +7,10 @@ from typing import Any
 
 from crewchief.models import Car, MaintenanceEvent, ServiceType, UsageType
 
+# Register datetime adapters to suppress Python 3.13 deprecation warnings
+sqlite3.register_adapter(datetime, lambda val: val.isoformat() if val else None)
+sqlite3.register_adapter(date, lambda val: val.isoformat() if val else None)
+
 
 class GarageRepository:
     """Repository for managing garage data in SQLite."""
