@@ -151,13 +151,31 @@ def llm_chat(
             start_idx = bracket_idx
 
         if start_idx >= 0:
-            # Find the end of JSON (last } or ])
+            # Find the end of JSON by counting braces/brackets properly
             json_str_candidate = json_str[start_idx:]
-            # Try to find matching closing brace/bracket
-            for i in range(len(json_str_candidate) - 1, -1, -1):
-                if json_str_candidate[i] in ("}", "]"):
-                    json_str = json_str_candidate[:i+1]
-                    break
+            open_count = 0
+            first_char = json_str_candidate[0]
+
+            # Track depth of nesting while respecting strings
+            in_string = False
+            escape_next = False
+            for i, char in enumerate(json_str_candidate):
+                if escape_next:
+                    escape_next = False
+                    continue
+                if char == "\\":
+                    escape_next = True
+                    continue
+                if char == '"':
+                    in_string = not in_string
+                if not in_string:
+                    if char in ("{", "["):
+                        open_count += 1
+                    elif char in ("}", "]"):
+                        open_count -= 1
+                        if open_count == 0:
+                            json_str = json_str_candidate[:i+1]
+                            break
 
     json_str = json_str.strip()
     if not json_str:
@@ -322,13 +340,31 @@ def generate_maintenance_suggestions(
                 start_idx = bracket_idx
 
             if start_idx >= 0:
-                # Find the end of JSON (last } or ])
+                # Find the end of JSON by counting braces/brackets properly
                 json_str_candidate = json_str[start_idx:]
-                # Try to find matching closing brace/bracket
-                for i in range(len(json_str_candidate) - 1, -1, -1):
-                    if json_str_candidate[i] in ("}", "]"):
-                        json_str = json_str_candidate[:i+1]
-                        break
+                open_count = 0
+                first_char = json_str_candidate[0]
+
+                # Track depth of nesting while respecting strings
+                in_string = False
+                escape_next = False
+                for i, char in enumerate(json_str_candidate):
+                    if escape_next:
+                        escape_next = False
+                        continue
+                    if char == "\\":
+                        escape_next = True
+                        continue
+                    if char == '"':
+                        in_string = not in_string
+                    if not in_string:
+                        if char in ("{", "["):
+                            open_count += 1
+                        elif char in ("}", "]"):
+                            open_count -= 1
+                            if open_count == 0:
+                                json_str = json_str_candidate[:i+1]
+                                break
 
         json_str = json_str.strip()
 
