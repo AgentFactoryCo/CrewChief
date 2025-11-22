@@ -135,12 +135,19 @@ def llm_chat(
     try:
         # Strip whitespace and remove markdown code blocks if present
         json_str = content.strip()
-        if json_str.startswith("```"):
-            # Extract JSON from markdown code block
-            json_str = json_str.split("```")[1]
-            if json_str.startswith("json"):
-                json_str = json_str[4:]
-            json_str = json_str.strip()
+
+        # Handle markdown code blocks (```json ... ```)
+        if "```" in json_str:
+            # Extract content between backticks
+            parts = json_str.split("```")
+            if len(parts) >= 3:
+                json_str = parts[1]  # Get middle part between first and second ```
+                # Remove language identifier (json, python, etc.)
+                if json_str.strip().startswith(("json", "python", "javascript")):
+                    lines = json_str.split("\n", 1)
+                    json_str = lines[1] if len(lines) > 1 else ""
+
+        json_str = json_str.strip()
         return response_schema.model_validate_json(json_str)
     except (ValidationError, json.JSONDecodeError) as e:
         raise LLMResponseError(
@@ -262,12 +269,19 @@ def generate_maintenance_suggestions(
     try:
         # Strip whitespace and remove markdown code blocks if present
         json_str = response.strip()
-        if json_str.startswith("```"):
-            # Extract JSON from markdown code block
-            json_str = json_str.split("```")[1]
-            if json_str.startswith("json"):
-                json_str = json_str[4:]
-            json_str = json_str.strip()
+
+        # Handle markdown code blocks (```json ... ```)
+        if "```" in json_str:
+            # Extract content between backticks
+            parts = json_str.split("```")
+            if len(parts) >= 3:
+                json_str = parts[1]  # Get middle part between first and second ```
+                # Remove language identifier (json, python, etc.)
+                if json_str.strip().startswith(("json", "python", "javascript")):
+                    lines = json_str.split("\n", 1)
+                    json_str = lines[1] if len(lines) > 1 else ""
+
+        json_str = json_str.strip()
         suggestions_data = json.loads(json_str)
         if not isinstance(suggestions_data, list):
             raise LLMResponseError("Expected JSON array of suggestions")
