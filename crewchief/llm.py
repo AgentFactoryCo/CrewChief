@@ -219,15 +219,17 @@ def llm_chat(
         open_brackets = fixed_json.count("[") - fixed_json.count("]")
 
         if open_braces > 0 or open_brackets > 0:
-            # Close any open brackets first
-            fixed_json += "]" * open_brackets
-            # Close any open braces
-            fixed_json += "}" * open_braces
+            # Try different closure orders
+            attempts = [
+                fixed_json + "]" * open_brackets + "}" * open_braces,  # Brackets first
+                fixed_json + "}" * open_braces + "]" * open_brackets,  # Braces first
+            ]
 
-            try:
-                return response_schema.model_validate_json(fixed_json)
-            except (ValidationError, json.JSONDecodeError):
-                pass  # If still fails, raise the original error
+            for attempt in attempts:
+                try:
+                    return response_schema.model_validate_json(attempt)
+                except (ValidationError, json.JSONDecodeError):
+                    continue
 
         # If we couldn't fix it, raise the original error with debug info
         raise LLMResponseError(
