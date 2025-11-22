@@ -140,21 +140,27 @@ def llm_chat(
         if "```" in json_str:
             # Extract content between backticks
             parts = json_str.split("```")
+            # Format is typically: [prefix, language\njson_content, suffix]
+            # We want the middle part
             if len(parts) >= 3:
                 json_str = parts[1]  # Get middle part between first and second ```
+            elif len(parts) == 2:
+                # Only one set of backticks, take the second part
+                json_str = parts[1]
             else:
-                # If there are only 2 parts, take what's after the first ```
-                json_str = parts[0] if len(parts) > 1 else json_str
+                json_str = parts[0]
 
             # Remove language identifier (json, python, etc.) and extra whitespace
             json_str = json_str.strip()
-            if json_str.startswith(("json", "python", "javascript")):
-                lines = json_str.split("\n", 1)
-                json_str = lines[1] if len(lines) > 1 else ""
+            lines = json_str.split("\n")
+
+            # Skip language identifier line if present
+            if lines and lines[0].strip() in ("json", "python", "javascript"):
+                json_str = "\n".join(lines[1:])
 
         json_str = json_str.strip()
         if not json_str:
-            raise LLMResponseError(f"No JSON content found after extracting from response")
+            raise LLMResponseError(f"No JSON content found after extracting from response. Raw: {repr(content[:300])}")
         return response_schema.model_validate_json(json_str)
     except (ValidationError, json.JSONDecodeError) as e:
         raise LLMResponseError(
@@ -281,17 +287,23 @@ def generate_maintenance_suggestions(
         if "```" in json_str:
             # Extract content between backticks
             parts = json_str.split("```")
+            # Format is typically: [prefix, language\njson_content, suffix]
+            # We want the middle part
             if len(parts) >= 3:
                 json_str = parts[1]  # Get middle part between first and second ```
+            elif len(parts) == 2:
+                # Only one set of backticks, take the second part
+                json_str = parts[1]
             else:
-                # If there are only 2 parts, take what's after the first ```
-                json_str = parts[0] if len(parts) > 1 else json_str
+                json_str = parts[0]
 
             # Remove language identifier (json, python, etc.) and extra whitespace
             json_str = json_str.strip()
-            if json_str.startswith(("json", "python", "javascript")):
-                lines = json_str.split("\n", 1)
-                json_str = lines[1] if len(lines) > 1 else ""
+            lines = json_str.split("\n")
+
+            # Skip language identifier line if present
+            if lines and lines[0].strip() in ("json", "python", "javascript"):
+                json_str = "\n".join(lines[1:])
 
         json_str = json_str.strip()
         suggestions_data = json.loads(json_str)
