@@ -682,10 +682,12 @@ def track_prep(car_id: int) -> None:
         console.print("[yellow]Make sure Foundry Local is running: foundry serve phi-3.5-mini[/yellow]")
         raise typer.Exit(code=1)
     except LLMError as e:
-        console.print(f"[red]LLM error:[/red] {e}")
+        console.print(f"[red]LLM error:[/red] {e}", soft_wrap=True)
         raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]Error generating checklist:[/red] {e}")
+        console.print(f"[red]Error generating checklist:[/red] {e}", soft_wrap=True)
+        import traceback
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
         raise typer.Exit(code=1)
     finally:
         repo.close()
