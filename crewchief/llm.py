@@ -186,20 +186,39 @@ def llm_chat(
         return response_schema.model_validate_json(json_str)
     except (ValidationError, json.JSONDecodeError) as initial_error:
         # If JSON is incomplete, try to fix it by closing open structures
+        fixed_json = json_str
+
+        # First, ensure we don't have markdown code block markers
+        if "```" in fixed_json:
+            # Find the start of actual JSON (either { or [)
+            brace_idx = fixed_json.find("{")
+            bracket_idx = fixed_json.find("[")
+
+            # Use whichever comes first
+            start_idx = -1
+            if brace_idx >= 0 and bracket_idx >= 0:
+                start_idx = min(brace_idx, bracket_idx)
+            elif brace_idx >= 0:
+                start_idx = brace_idx
+            elif bracket_idx >= 0:
+                start_idx = bracket_idx
+
+            if start_idx >= 0:
+                fixed_json = fixed_json[start_idx:]
+
         # Count open and close braces/brackets
-        open_braces = json_str.count("{") - json_str.count("}")
-        open_brackets = json_str.count("[") - json_str.count("]")
+        open_braces = fixed_json.count("{") - fixed_json.count("}")
+        open_brackets = fixed_json.count("[") - fixed_json.count("]")
 
         # Check if there's an unterminated string (ends with unclosed quote)
         # If so, remove the last incomplete string value
-        fixed_json = json_str
 
         # Count quotes - if odd number, we have an unterminated string
-        quote_count = json_str.count('"')
+        quote_count = fixed_json.count('"')
         if quote_count % 2 == 1:
             # Odd number of quotes means unterminated string
-            last_quote_idx = json_str.rfind('"')
-            search_back = json_str[:last_quote_idx]
+            last_quote_idx = fixed_json.rfind('"')
+            search_back = fixed_json[:last_quote_idx]
 
             # Find the last meaningful character before the unterminated string
             # We want to go back to find a complete value (quote, bracket, brace)
