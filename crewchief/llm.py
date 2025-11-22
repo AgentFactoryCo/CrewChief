@@ -133,7 +133,7 @@ def llm_chat(
 
     # Validate against Pydantic schema
     try:
-        return response_schema.model_validate_json(content)
+        return response_schema.model_validate_json(content.strip())
     except ValidationError as e:
         raise LLMResponseError(
             f"LLM response does not match expected schema: {e}"
@@ -252,7 +252,7 @@ def generate_maintenance_suggestions(
 
     # Parse JSON array and validate each suggestion
     try:
-        suggestions_data = json.loads(response)
+        suggestions_data = json.loads(response.strip())
         if not isinstance(suggestions_data, list):
             raise LLMResponseError("Expected JSON array of suggestions")
 
