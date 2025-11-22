@@ -163,12 +163,33 @@ def llm_chat(
         json_str = json_str.strip()
         if not json_str:
             raise LLMResponseError(f"No JSON content found in response")
-        return response_schema.model_validate_json(json_str)
-    except (ValidationError, json.JSONDecodeError) as e:
-        # Show more of the response and extracted JSON for debugging
-        raise LLMResponseError(
-            f"LLM response does not match expected schema: {e}\n\nExtracted JSON length: {len(json_str)}\nExtracted JSON (last 300 chars): {repr(json_str[-300:]) if json_str else 'EMPTY'}\n\nFull raw response length: {len(content)}\nRaw response (chars 0-500): {repr(content[:500])}\nRaw response (chars -500 to end): {repr(content[-500:])}"
-        ) from e
+
+        # Try to parse as-is first
+        try:
+            return response_schema.model_validate_json(json_str)
+        except (ValidationError, json.JSONDecodeError) as initial_error:
+            # If JSON is incomplete, try to fix it by closing open structures
+            # Count open and close braces/brackets
+            open_braces = json_str.count("{") - json_str.count("}")
+            open_brackets = json_str.count("[") - json_str.count("]")
+
+            # Try to close any open structures
+            if open_braces > 0 or open_brackets > 0:
+                fixed_json = json_str
+                # Close any open brackets first
+                fixed_json += "]" * open_brackets
+                # Close any open braces
+                fixed_json += "}" * open_braces
+
+                try:
+                    return response_schema.model_validate_json(fixed_json)
+                except (ValidationError, json.JSONDecodeError):
+                    pass  # If still fails, raise the original error
+
+            # If we couldn't fix it, raise the original error with debug info
+            raise LLMResponseError(
+                f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nExtracted JSON (last 300 chars): {repr(json_str[-300:]) if json_str else 'EMPTY'}\n\nFull raw response length: {len(content)}\nRaw response (chars -300 to end): {repr(content[-300:])}"
+            ) from initial_error
 
 
 def generate_garage_summary(snapshot: GarageSnapshot) -> str:
@@ -311,7 +332,30 @@ def generate_maintenance_suggestions(
                         break
 
         json_str = json_str.strip()
-        suggestions_data = json.loads(json_str)
+
+        # Try to parse as-is first
+        try:
+            suggestions_data = json.loads(json_str)
+        except json.JSONDecodeError as initial_error:
+            # If JSON is incomplete, try to fix it by closing open structures
+            open_braces = json_str.count("{") - json_str.count("}")
+            open_brackets = json_str.count("[") - json_str.count("]")
+
+            # Try to close any open structures
+            if open_braces > 0 or open_brackets > 0:
+                fixed_json = json_str
+                # Close any open brackets first
+                fixed_json += "]" * open_brackets
+                # Close any open braces
+                fixed_json += "}" * open_braces
+
+                try:
+                    suggestions_data = json.loads(fixed_json)
+                except json.JSONDecodeError:
+                    raise initial_error
+            else:
+                raise initial_error
+
         if not isinstance(suggestions_data, list):
             raise LLMResponseError("Expected JSON array of suggestions")
 
