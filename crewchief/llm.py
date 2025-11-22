@@ -233,7 +233,7 @@ def llm_chat(
 
         # If we couldn't fix it, raise the original error with debug info
         raise LLMResponseError(
-            f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nFixed JSON length: {len(fixed_json)}\nFixed JSON (last 200 chars): {repr(fixed_json[-200:])}"
+            f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nFixed JSON length: {len(fixed_json)}\nFixed JSON (first 100 chars): {repr(fixed_json[:100])}\nFixed JSON (last 200 chars): {repr(fixed_json[-200:])}"
         ) from initial_error
 
 
