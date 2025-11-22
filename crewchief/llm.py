@@ -144,7 +144,7 @@ def llm_chat(
         return response_schema.model_validate_json(json_str)
     except ValidationError as e:
         raise LLMResponseError(
-            f"LLM response does not match expected schema: {e}"
+            f"LLM response does not match expected schema: {e}\n\nRaw response: {repr(content[:200])}"
         ) from e
 
 
