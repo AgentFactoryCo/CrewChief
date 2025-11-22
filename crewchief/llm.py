@@ -190,9 +190,29 @@ def llm_chat(
         open_braces = json_str.count("{") - json_str.count("}")
         open_brackets = json_str.count("[") - json_str.count("]")
 
-        # Try to close any open structures
+        # Check if there's an unterminated string (ends with unclosed quote)
+        # If so, remove the last incomplete string value
+        fixed_json = json_str
+
+        # Simple heuristic: if ends with quote followed by incomplete data, truncate
+        # Count quotes - if odd number, we have an unterminated string
+        quote_count = json_str.count('"')
+        if quote_count % 2 == 1:
+            # Odd number of quotes means unterminated string, find the last quote
+            last_quote_idx = json_str.rfind('"')
+            # Look back to find the colon or bracket before this
+            search_back = json_str[:last_quote_idx]
+            # Find the last meaningful character before the unterminated string
+            for i in range(len(search_back) - 1, -1, -1):
+                if search_back[i] in (',', '[', '{'):
+                    fixed_json = search_back[:i+1]
+                    break
+
+        # Now close any open structures
+        open_braces = fixed_json.count("{") - fixed_json.count("}")
+        open_brackets = fixed_json.count("[") - fixed_json.count("]")
+
         if open_braces > 0 or open_brackets > 0:
-            fixed_json = json_str
             # Close any open brackets first
             fixed_json += "]" * open_brackets
             # Close any open braces
@@ -205,7 +225,7 @@ def llm_chat(
 
         # If we couldn't fix it, raise the original error with debug info
         raise LLMResponseError(
-            f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nExtracted JSON (last 300 chars): {repr(json_str[-300:]) if json_str else 'EMPTY'}\n\nFull raw response length: {len(content)}\nRaw response (chars -300 to end): {repr(content[-300:])}"
+            f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nFixed JSON length: {len(fixed_json)}\nFixed JSON (last 200 chars): {repr(fixed_json[-200:])}"
         ) from initial_error
 
 
@@ -373,12 +393,25 @@ def generate_maintenance_suggestions(
             suggestions_data = json.loads(json_str)
         except json.JSONDecodeError as initial_error:
             # If JSON is incomplete, try to fix it by closing open structures
-            open_braces = json_str.count("{") - json_str.count("}")
-            open_brackets = json_str.count("[") - json_str.count("]")
+            fixed_json = json_str
 
-            # Try to close any open structures
+            # Check if there's an unterminated string
+            quote_count = json_str.count('"')
+            if quote_count % 2 == 1:
+                # Odd number of quotes means unterminated string
+                last_quote_idx = json_str.rfind('"')
+                search_back = json_str[:last_quote_idx]
+                # Find the last meaningful character before the unterminated string
+                for i in range(len(search_back) - 1, -1, -1):
+                    if search_back[i] in (',', '[', '{'):
+                        fixed_json = search_back[:i+1]
+                        break
+
+            # Now close any open structures
+            open_braces = fixed_json.count("{") - fixed_json.count("}")
+            open_brackets = fixed_json.count("[") - fixed_json.count("]")
+
             if open_braces > 0 or open_brackets > 0:
-                fixed_json = json_str
                 # Close any open brackets first
                 fixed_json += "]" * open_brackets
                 # Close any open braces
