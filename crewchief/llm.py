@@ -132,64 +132,63 @@ def llm_chat(
         return content
 
     # Validate against Pydantic schema
+    # Strip whitespace and remove markdown code blocks if present
+    json_str = content.strip()
+
+    # Handle markdown code blocks by finding actual JSON boundaries
+    if "```" in json_str:
+        # Find the start of actual JSON (either { or [)
+        brace_idx = json_str.find("{")
+        bracket_idx = json_str.find("[")
+
+        # Use whichever comes first
+        start_idx = -1
+        if brace_idx >= 0 and bracket_idx >= 0:
+            start_idx = min(brace_idx, bracket_idx)
+        elif brace_idx >= 0:
+            start_idx = brace_idx
+        elif bracket_idx >= 0:
+            start_idx = bracket_idx
+
+        if start_idx >= 0:
+            # Find the end of JSON (last } or ])
+            json_str_candidate = json_str[start_idx:]
+            # Try to find matching closing brace/bracket
+            for i in range(len(json_str_candidate) - 1, -1, -1):
+                if json_str_candidate[i] in ("}", "]"):
+                    json_str = json_str_candidate[:i+1]
+                    break
+
+    json_str = json_str.strip()
+    if not json_str:
+        raise LLMResponseError(f"No JSON content found in response")
+
+    # Try to parse as-is first
     try:
-        # Strip whitespace and remove markdown code blocks if present
-        json_str = content.strip()
+        return response_schema.model_validate_json(json_str)
+    except (ValidationError, json.JSONDecodeError) as initial_error:
+        # If JSON is incomplete, try to fix it by closing open structures
+        # Count open and close braces/brackets
+        open_braces = json_str.count("{") - json_str.count("}")
+        open_brackets = json_str.count("[") - json_str.count("]")
 
-        # Handle markdown code blocks by finding actual JSON boundaries
-        if "```" in json_str:
-            # Find the start of actual JSON (either { or [)
-            brace_idx = json_str.find("{")
-            bracket_idx = json_str.find("[")
+        # Try to close any open structures
+        if open_braces > 0 or open_brackets > 0:
+            fixed_json = json_str
+            # Close any open brackets first
+            fixed_json += "]" * open_brackets
+            # Close any open braces
+            fixed_json += "}" * open_braces
 
-            # Use whichever comes first
-            start_idx = -1
-            if brace_idx >= 0 and bracket_idx >= 0:
-                start_idx = min(brace_idx, bracket_idx)
-            elif brace_idx >= 0:
-                start_idx = brace_idx
-            elif bracket_idx >= 0:
-                start_idx = bracket_idx
+            try:
+                return response_schema.model_validate_json(fixed_json)
+            except (ValidationError, json.JSONDecodeError):
+                pass  # If still fails, raise the original error
 
-            if start_idx >= 0:
-                # Find the end of JSON (last } or ])
-                json_str_candidate = json_str[start_idx:]
-                # Try to find matching closing brace/bracket
-                for i in range(len(json_str_candidate) - 1, -1, -1):
-                    if json_str_candidate[i] in ("}", "]"):
-                        json_str = json_str_candidate[:i+1]
-                        break
-
-        json_str = json_str.strip()
-        if not json_str:
-            raise LLMResponseError(f"No JSON content found in response")
-
-        # Try to parse as-is first
-        try:
-            return response_schema.model_validate_json(json_str)
-        except (ValidationError, json.JSONDecodeError) as initial_error:
-            # If JSON is incomplete, try to fix it by closing open structures
-            # Count open and close braces/brackets
-            open_braces = json_str.count("{") - json_str.count("}")
-            open_brackets = json_str.count("[") - json_str.count("]")
-
-            # Try to close any open structures
-            if open_braces > 0 or open_brackets > 0:
-                fixed_json = json_str
-                # Close any open brackets first
-                fixed_json += "]" * open_brackets
-                # Close any open braces
-                fixed_json += "}" * open_braces
-
-                try:
-                    return response_schema.model_validate_json(fixed_json)
-                except (ValidationError, json.JSONDecodeError):
-                    pass  # If still fails, raise the original error
-
-            # If we couldn't fix it, raise the original error with debug info
-            raise LLMResponseError(
-                f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nExtracted JSON (last 300 chars): {repr(json_str[-300:]) if json_str else 'EMPTY'}\n\nFull raw response length: {len(content)}\nRaw response (chars -300 to end): {repr(content[-300:])}"
-            ) from initial_error
+        # If we couldn't fix it, raise the original error with debug info
+        raise LLMResponseError(
+            f"LLM response does not match expected schema: {initial_error}\n\nExtracted JSON length: {len(json_str)}\nExtracted JSON (last 300 chars): {repr(json_str[-300:]) if json_str else 'EMPTY'}\n\nFull raw response length: {len(content)}\nRaw response (chars -300 to end): {repr(content[-300:])}"
+        ) from initial_error
 
 
 def generate_garage_summary(snapshot: GarageSnapshot) -> str:
