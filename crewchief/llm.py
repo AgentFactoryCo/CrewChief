@@ -194,17 +194,23 @@ def llm_chat(
         # If so, remove the last incomplete string value
         fixed_json = json_str
 
-        # Simple heuristic: if ends with quote followed by incomplete data, truncate
         # Count quotes - if odd number, we have an unterminated string
         quote_count = json_str.count('"')
         if quote_count % 2 == 1:
-            # Odd number of quotes means unterminated string, find the last quote
+            # Odd number of quotes means unterminated string
             last_quote_idx = json_str.rfind('"')
-            # Look back to find the colon or bracket before this
             search_back = json_str[:last_quote_idx]
+
             # Find the last meaningful character before the unterminated string
+            # We want to go back to find a complete value (quote, bracket, brace)
             for i in range(len(search_back) - 1, -1, -1):
-                if search_back[i] in (',', '[', '{'):
+                char = search_back[i]
+                if char == ',':
+                    # Found a comma - skip it and take everything before
+                    fixed_json = search_back[:i]
+                    break
+                elif char in ('"', ']', '}'):
+                    # Found a complete value, keep everything up to and including it
                     fixed_json = search_back[:i+1]
                     break
 
@@ -403,7 +409,13 @@ def generate_maintenance_suggestions(
                 search_back = json_str[:last_quote_idx]
                 # Find the last meaningful character before the unterminated string
                 for i in range(len(search_back) - 1, -1, -1):
-                    if search_back[i] in (',', '[', '{'):
+                    char = search_back[i]
+                    if char == ',':
+                        # Found a comma - skip it and take everything before
+                        fixed_json = search_back[:i]
+                        break
+                    elif char in ('"', ']', '}'):
+                        # Found a complete value, keep everything up to and including it
                         fixed_json = search_back[:i+1]
                         break
 
