@@ -466,6 +466,9 @@ def generate_maintenance_suggestions(
         try:
             suggestions_data = json.loads(json_str)
         except json.JSONDecodeError as initial_error:
+            print(f"DEBUG: JSON parse failed at char {initial_error.pos}")
+            print(f"DEBUG: json_str length: {len(json_str)}")
+            print(f"DEBUG: json_str around error: {repr(json_str[max(0, initial_error.pos-50):initial_error.pos+50])}")
             # If JSON is incomplete, try to fix it by closing open structures
             fixed_json = json_str
 
