@@ -466,9 +466,6 @@ def generate_maintenance_suggestions(
         try:
             suggestions_data = json.loads(json_str)
         except json.JSONDecodeError as initial_error:
-            print(f"DEBUG: JSON parse failed at char {initial_error.pos}")
-            print(f"DEBUG: json_str length: {len(json_str)}")
-            print(f"DEBUG: json_str around error: {repr(json_str[max(0, initial_error.pos-50):initial_error.pos+50])}")
             # If JSON is incomplete, try to fix it by closing open structures
             fixed_json = json_str
 
@@ -490,40 +487,53 @@ def generate_maintenance_suggestions(
                         fixed_json = search_back[:i+1]
                         break
 
-                # Check if we ended with incomplete/malformed syntax
-                # This can happen when truncation occurs mid-structure
-                # Look for patterns like: , "key" (no value) or , "key": [] (malformed)
-                if fixed_json.rstrip().endswith(('"', ']', '}')):
-                    # Find the last comma
-                    last_comma_idx = fixed_json.rfind(',')
-                    if last_comma_idx >= 0:
-                        # Check what comes after the comma
-                        after_comma = fixed_json[last_comma_idx+1:].strip()
+            # Also check for keys with missing values (e.g., "car_label": with no value after)
+            # This happens when truncation occurs right after the colon
+            if fixed_json.rstrip().endswith(':'):
+                # Key with missing value - remove the key and colon
+                last_comma_idx = fixed_json.rfind(',')
+                if last_comma_idx >= 0:
+                    fixed_json = fixed_json[:last_comma_idx]
+                else:
+                    # No comma found, try to remove from the opening brace
+                    last_brace_idx = fixed_json.rfind('{')
+                    if last_brace_idx >= 0:
+                        fixed_json = fixed_json[:last_brace_idx+1]
 
-                        # Check if it looks like an incomplete key-value pair
-                        if after_comma.startswith('"'):
-                            # This is a string (likely a key)
-                            # Check if there's a matching closing quote
-                            closing_quote_idx = after_comma.rfind('"')
-                            if closing_quote_idx > 0:
-                                # Extract potential key
-                                potential_key = after_comma[1:closing_quote_idx]
-                                after_key = after_comma[closing_quote_idx+1:].strip()
+            # Check if we ended with incomplete/malformed syntax
+            # This can happen when truncation occurs mid-structure
+            # Look for patterns like: , "key" (no value) or , "key": [] (malformed)
+            if fixed_json.rstrip().endswith(('"', ']', '}')):
+                # Find the last comma
+                last_comma_idx = fixed_json.rfind(',')
+                if last_comma_idx >= 0:
+                    # Check what comes after the comma
+                    after_comma = fixed_json[last_comma_idx+1:].strip()
 
-                                # If no colon after key, or colon with incomplete value, remove this dangling content
-                                if not after_key or not after_key.startswith(':'):
-                                    # Remove the comma and everything after it
-                                    fixed_json = fixed_json[:last_comma_idx]
-                                elif after_key.startswith(':'):
-                                    # There's a colon but potentially malformed value
-                                    # Check if what follows the colon looks incomplete
-                                    after_colon = after_key[1:].strip()
-                                    if after_colon in ('[]', '[', ']', '{}', '{', '}', ''):
-                                        # Likely incomplete, remove and add proper placeholder
-                                        fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
-                                    elif after_colon.endswith((']', '}')) and not (after_colon.startswith('[') or after_colon.startswith('{')):
-                                        # Ends with bracket/brace but doesn't start with one - malformed
-                                        fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
+                    # Check if it looks like an incomplete key-value pair
+                    if after_comma.startswith('"'):
+                        # This is a string (likely a key)
+                        # Check if there's a matching closing quote
+                        closing_quote_idx = after_comma.rfind('"')
+                        if closing_quote_idx > 0:
+                            # Extract potential key
+                            potential_key = after_comma[1:closing_quote_idx]
+                            after_key = after_comma[closing_quote_idx+1:].strip()
+
+                            # If no colon after key, or colon with incomplete value, remove this dangling content
+                            if not after_key or not after_key.startswith(':'):
+                                # Remove the comma and everything after it
+                                fixed_json = fixed_json[:last_comma_idx]
+                            elif after_key.startswith(':'):
+                                # There's a colon but potentially malformed value
+                                # Check if what follows the colon looks incomplete
+                                after_colon = after_key[1:].strip()
+                                if after_colon in ('[]', '[', ']', '{}', '{', '}', ''):
+                                    # Likely incomplete, remove and add proper placeholder
+                                    fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
+                                elif after_colon.endswith((']', '}')) and not (after_colon.startswith('[') or after_colon.startswith('{')):
+                                    # Ends with bracket/brace but doesn't start with one - malformed
+                                    fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
 
             # Now close any open structures
             open_braces = fixed_json.count("{") - fixed_json.count("}")
