@@ -686,12 +686,17 @@ Maintenance history: {json.dumps(maintenance_data)}
 
 Respond with ONLY a JSON array of strings, no other text. Example: ["item1", "item2"]"""
         recommended_response = llm_chat(system_prompt, recommended_prompt)
+        print(f"DEBUG: recommended_response = {repr(recommended_response[:200])}")
         try:
             import re
             json_match = re.search(r'\[.*\]', recommended_response, re.DOTALL)
+            print(f"DEBUG: json_match = {json_match}")
             if json_match:
+                print(f"DEBUG: matched JSON = {repr(json_match.group()[:100])}")
                 response.recommended_items = json.loads(json_match.group())
-        except (json.JSONDecodeError, AttributeError):
+                print(f"DEBUG: parsed recommended_items = {response.recommended_items}")
+        except (json.JSONDecodeError, AttributeError) as e:
+            print(f"DEBUG: Failed to parse recommended_items: {e}")
             # If we still can't get it, use empty list (better than failing)
             response.recommended_items = []
 
