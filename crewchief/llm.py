@@ -233,26 +233,40 @@ def llm_chat(
                     fixed_json = search_back[:i+1]
                     break
 
-        # Check if we ended with a key without a value (e.g., "recommended_items" with no colon/value)
-        # This happens when the value was completely truncated
-        # Look for pattern: , "key" at the end
-        if fixed_json.rstrip().endswith('"'):
-            # Find the last comma before this dangling key
+        # Check if we ended with incomplete/malformed syntax
+        # This can happen when truncation occurs mid-structure
+        # Look for patterns like: , "key" (no value) or , "key": [] (malformed)
+        if fixed_json.rstrip().endswith(('"', ']', '}')):
+            # Find the last comma
             last_comma_idx = fixed_json.rfind(',')
             if last_comma_idx >= 0:
-                # Check if there's only whitespace and a key after the comma
-                after_comma = fixed_json[last_comma_idx+1:]
-                if ':' not in after_comma:  # No colon means no value was provided
-                    # Extract the dangling key name
-                    # It's between quotes, so find the quotes
-                    key_match = after_comma.strip()
-                    if key_match.startswith('"') and key_match.endswith('"'):
-                        dangling_key = key_match[1:-1]
-                        # Add the key with an empty array as default (for list fields)
-                        fixed_json = fixed_json[:last_comma_idx] + f', "{dangling_key}": []'
-                    else:
-                        # If we can't parse the key, just remove the comma and dangling content
-                        fixed_json = fixed_json[:last_comma_idx]
+                # Check what comes after the comma
+                after_comma = fixed_json[last_comma_idx+1:].strip()
+
+                # Check if it looks like an incomplete key-value pair
+                if after_comma.startswith('"'):
+                    # This is a string (likely a key)
+                    # Check if there's a matching closing quote
+                    closing_quote_idx = after_comma.rfind('"')
+                    if closing_quote_idx > 0:
+                        # Extract potential key
+                        potential_key = after_comma[1:closing_quote_idx]
+                        after_key = after_comma[closing_quote_idx+1:].strip()
+
+                        # If no colon after key, or colon with incomplete value, remove this dangling content
+                        if not after_key or not after_key.startswith(':'):
+                            # Remove the comma and everything after it
+                            fixed_json = fixed_json[:last_comma_idx]
+                        elif after_key.startswith(':'):
+                            # There's a colon but potentially malformed value
+                            # Check if what follows the colon looks incomplete
+                            after_colon = after_key[1:].strip()
+                            if after_colon in ('[]', '[', ']', '{}', '{', '}', ''):
+                                # Likely incomplete, remove and add proper placeholder
+                                fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
+                            elif after_colon.endswith((']', '}')) and not (after_colon.startswith('[') or after_colon.startswith('{')):
+                                # Ends with bracket/brace but doesn't start with one - malformed
+                                fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
 
         # Now close any open structures
         # IMPORTANT: Recount after removing dangling keys
@@ -462,26 +476,40 @@ def generate_maintenance_suggestions(
                         fixed_json = search_back[:i+1]
                         break
 
-                # Check if we ended with a key without a value (e.g., "recommended_items" with no colon/value)
-                # This happens when the value was completely truncated
-                # Look for pattern: , "key" at the end
-                if fixed_json.rstrip().endswith('"'):
-                    # Find the last comma before this dangling key
+                # Check if we ended with incomplete/malformed syntax
+                # This can happen when truncation occurs mid-structure
+                # Look for patterns like: , "key" (no value) or , "key": [] (malformed)
+                if fixed_json.rstrip().endswith(('"', ']', '}')):
+                    # Find the last comma
                     last_comma_idx = fixed_json.rfind(',')
                     if last_comma_idx >= 0:
-                        # Check if there's only whitespace and a key after the comma
-                        after_comma = fixed_json[last_comma_idx+1:]
-                        if ':' not in after_comma:  # No colon means no value was provided
-                            # Extract the dangling key name
-                            # It's between quotes, so find the quotes
-                            key_match = after_comma.strip()
-                            if key_match.startswith('"') and key_match.endswith('"'):
-                                dangling_key = key_match[1:-1]
-                                # Add the key with an empty array as default (for list fields)
-                                fixed_json = fixed_json[:last_comma_idx] + f', "{dangling_key}": []'
-                            else:
-                                # If we can't parse the key, just remove the comma and dangling content
-                                fixed_json = fixed_json[:last_comma_idx]
+                        # Check what comes after the comma
+                        after_comma = fixed_json[last_comma_idx+1:].strip()
+
+                        # Check if it looks like an incomplete key-value pair
+                        if after_comma.startswith('"'):
+                            # This is a string (likely a key)
+                            # Check if there's a matching closing quote
+                            closing_quote_idx = after_comma.rfind('"')
+                            if closing_quote_idx > 0:
+                                # Extract potential key
+                                potential_key = after_comma[1:closing_quote_idx]
+                                after_key = after_comma[closing_quote_idx+1:].strip()
+
+                                # If no colon after key, or colon with incomplete value, remove this dangling content
+                                if not after_key or not after_key.startswith(':'):
+                                    # Remove the comma and everything after it
+                                    fixed_json = fixed_json[:last_comma_idx]
+                                elif after_key.startswith(':'):
+                                    # There's a colon but potentially malformed value
+                                    # Check if what follows the colon looks incomplete
+                                    after_colon = after_key[1:].strip()
+                                    if after_colon in ('[]', '[', ']', '{}', '{', '}', ''):
+                                        # Likely incomplete, remove and add proper placeholder
+                                        fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
+                                    elif after_colon.endswith((']', '}')) and not (after_colon.startswith('[') or after_colon.startswith('{')):
+                                        # Ends with bracket/brace but doesn't start with one - malformed
+                                        fixed_json = fixed_json[:last_comma_idx] + f', "{potential_key}": []'
 
             # Now close any open structures
             open_braces = fixed_json.count("{") - fixed_json.count("}")
