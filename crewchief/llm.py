@@ -673,16 +673,44 @@ Respond with ONLY a JSON array of strings, no other text. Example: ["item1", "it
         critical_response = llm_chat(system_prompt, critical_prompt)
         try:
             import re
+            json_str = critical_response.strip()
+
             # Handle markdown code blocks and extract JSON array
-            if '```' in critical_response:
+            if '```' in json_str:
                 # Remove markdown markers
-                critical_response = critical_response.replace('```json', '').replace('```', '')
+                json_str = json_str.replace('```json', '').replace('```', '').strip()
 
             # Find JSON array - use greedy match to get complete array
-            json_match = re.search(r'\[[\s\S]*\]', critical_response)
+            json_match = re.search(r'\[[\s\S]*\]', json_str)
             if json_match:
                 json_str = json_match.group().strip()
+
+            # Try to parse, but if it fails due to truncation, repair it
+            try:
                 response.critical_items = json.loads(json_str)
+            except json.JSONDecodeError:
+                # Response was truncated, try to repair it
+                # Check for unterminated string (odd number of quotes)
+                quote_count = json_str.count('"')
+                if quote_count % 2 == 1:
+                    # Remove the incomplete last item
+                    last_quote_idx = json_str.rfind('"')
+                    json_str = json_str[:last_quote_idx]
+                    # Remove any trailing comma
+                    json_str = json_str.rstrip(',').rstrip()
+
+                # Close the array if needed
+                if json_str.rstrip().endswith(','):
+                    json_str = json_str.rstrip(',').rstrip()
+
+                if not json_str.endswith(']'):
+                    json_str += ']'
+
+                try:
+                    response.critical_items = json.loads(json_str)
+                except json.JSONDecodeError:
+                    # If repair fails, just continue without fallback items
+                    pass
         except (json.JSONDecodeError, AttributeError):
             pass
 
@@ -693,25 +721,47 @@ Maintenance history: {json.dumps(maintenance_data)}
 
 Respond with ONLY a JSON array of strings, no other text. Example: ["item1", "item2"]"""
         recommended_response = llm_chat(system_prompt, recommended_prompt)
-        print(f"DEBUG: recommended_response length = {len(recommended_response)}")
-        print(f"DEBUG: recommended_response = {repr(recommended_response[:300])}")
         try:
             import re
+            json_str = recommended_response.strip()
+
             # Handle markdown code blocks and extract JSON array
-            if '```' in recommended_response:
+            if '```' in json_str:
                 # Remove markdown markers
-                recommended_response = recommended_response.replace('```json', '').replace('```', '')
+                json_str = json_str.replace('```json', '').replace('```', '').strip()
 
             # Find JSON array - use greedy match to get complete array
-            json_match = re.search(r'\[[\s\S]*\]', recommended_response)
-            print(f"DEBUG: json_match found = {json_match is not None}")
+            json_match = re.search(r'\[[\s\S]*\]', json_str)
             if json_match:
                 json_str = json_match.group().strip()
-                print(f"DEBUG: parsed json_str = {repr(json_str[:100])}")
+
+            # Try to parse, but if it fails due to truncation, repair it
+            try:
                 response.recommended_items = json.loads(json_str)
-                print(f"DEBUG: final recommended_items count = {len(response.recommended_items)}")
-        except (json.JSONDecodeError, AttributeError) as e:
-            print(f"DEBUG: exception parsing recommended_items: {e}")
+            except json.JSONDecodeError:
+                # Response was truncated, try to repair it
+                # Check for unterminated string (odd number of quotes)
+                quote_count = json_str.count('"')
+                if quote_count % 2 == 1:
+                    # Remove the incomplete last item
+                    last_quote_idx = json_str.rfind('"')
+                    json_str = json_str[:last_quote_idx]
+                    # Remove any trailing comma
+                    json_str = json_str.rstrip(',').rstrip()
+
+                # Close the array if needed
+                if json_str.rstrip().endswith(','):
+                    json_str = json_str.rstrip(',').rstrip()
+
+                if not json_str.endswith(']'):
+                    json_str += ']'
+
+                try:
+                    response.recommended_items = json.loads(json_str)
+                except json.JSONDecodeError:
+                    # If repair fails, use empty list
+                    response.recommended_items = []
+        except (json.JSONDecodeError, AttributeError):
             # If we still can't get it, use empty list (better than failing)
             response.recommended_items = []
 
