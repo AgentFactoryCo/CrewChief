@@ -262,10 +262,12 @@ def llm_chat(
                 fixed_json + "}" * open_braces + "]" * open_brackets,  # Braces first
             ]
 
-            for attempt in attempts:
+            for i, attempt in enumerate(attempts):
+                print(f"DEBUG: Attempt {i+1}: {repr(attempt[-50:])}")
                 try:
                     return response_schema.model_validate_json(attempt)
-                except (ValidationError, json.JSONDecodeError):
+                except (ValidationError, json.JSONDecodeError) as e:
+                    print(f"DEBUG: Attempt {i+1} failed: {e}")
                     continue
 
         # If we couldn't fix it, raise the original error with debug info
