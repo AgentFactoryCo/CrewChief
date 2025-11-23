@@ -259,10 +259,6 @@ def llm_chat(
         open_braces = fixed_json.count("{") - fixed_json.count("}")
         open_brackets = fixed_json.count("[") - fixed_json.count("]")
 
-        # Debug info
-        print(f"DEBUG: After cleanup - open_braces={open_braces}, open_brackets={open_brackets}")
-        print(f"DEBUG: Last 100 chars before closing: {repr(fixed_json[-100:])}")
-
         if open_braces > 0 or open_brackets > 0:
             # Try different closure orders
             attempts = [
@@ -270,12 +266,10 @@ def llm_chat(
                 fixed_json + "}" * open_braces + "]" * open_brackets,  # Braces first
             ]
 
-            for i, attempt in enumerate(attempts):
-                print(f"DEBUG: Attempt {i+1}: {repr(attempt[-50:])}")
+            for attempt in attempts:
                 try:
                     return response_schema.model_validate_json(attempt)
-                except (ValidationError, json.JSONDecodeError) as e:
-                    print(f"DEBUG: Attempt {i+1} failed: {e}")
+                except (ValidationError, json.JSONDecodeError):
                     continue
 
         # If we couldn't fix it, raise the original error with debug info
@@ -478,8 +472,16 @@ def generate_maintenance_suggestions(
                         # Check if there's only whitespace and a key after the comma
                         after_comma = fixed_json[last_comma_idx+1:]
                         if ':' not in after_comma:  # No colon means no value was provided
-                            # Remove the comma and everything after it
-                            fixed_json = fixed_json[:last_comma_idx]
+                            # Extract the dangling key name
+                            # It's between quotes, so find the quotes
+                            key_match = after_comma.strip()
+                            if key_match.startswith('"') and key_match.endswith('"'):
+                                dangling_key = key_match[1:-1]
+                                # Add the key with an empty array as default (for list fields)
+                                fixed_json = fixed_json[:last_comma_idx] + f', "{dangling_key}": []'
+                            else:
+                                # If we can't parse the key, just remove the comma and dangling content
+                                fixed_json = fixed_json[:last_comma_idx]
 
             # Now close any open structures
             open_braces = fixed_json.count("{") - fixed_json.count("}")
